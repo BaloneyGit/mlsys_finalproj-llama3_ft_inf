@@ -77,4 +77,4 @@ def benchmark_inference(batch_size, input_len, output_len, kv_caching):
     print(results[0]["generation"])
 
 if __name__ == "__main__":
-    benchmark_inference(batch_size=16, input_len=256, output_len=64, kv_caching=True)
+    benchmark_inference(batch_size=16, input_len=256, output_len=32, kv_caching=False)

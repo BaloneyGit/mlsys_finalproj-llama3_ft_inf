@@ -27,7 +27,7 @@ class ModelArgs: # fixed model configurations for Llama3.2-1B
     max_batch_size: int = 4  # for kv caching pre-allocation
     max_seq_len: int = 256   # for kv caching pre-allocation
 
-    kv_caching: bool = True
+    kv_caching: bool = False # enable/disable KV Cache
 
 class RMSNorm(torch.nn.Module):
     def __init__(self, dim: int, eps: float = 1e-6):
@@ -258,7 +258,10 @@ class Attention(nn.Module):
             keys = self.cache_k[:bsz, : start_pos + seqlen]
             values = self.cache_v[:bsz, : start_pos + seqlen]
         else:
-            pass
+            # pass
+            keys = xk
+            values = xv
+
 
         # repeat k/v heads if n_kv_heads < n_heads
         keys = repeat_kv(keys, self.n_rep)  # (bs, cache_len + seqlen, n_local_heads, head_dim)

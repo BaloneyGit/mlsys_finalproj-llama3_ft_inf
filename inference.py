@@ -2,6 +2,7 @@ from llama.tokenizer import Tokenizer
 from llama.model import ModelArgs, Llama
 import torch
 import os
+import ipdb
 
 def inference():
     torch.manual_seed(1)
@@ -21,25 +22,25 @@ def inference():
     model.to(device)
     
     prompts = [
-        # For these prompts, the expected answer is the natural continuation of the prompt
-        "I believe the meaning of life is",
-        "Simply put, the theory of relativity states that ",
-        """A brief message congratulating the team on the launch:
-
-        Hi everyone,
-        
-        I just """,
-        # Few shot prompt (providing a few examples before asking model to complete more);
-        """Translate English to French:
-        
-        sea otter => loutre de mer
-        peppermint => menthe poivrée
-        plush girafe => girafe peluche
-        cheese =>""",
+	        # For these prompts, the expected answer is the natural continuation of the prompt
+	        "I believe the meaning of life is",
+	        "Simply put, the theory of relativity states that ",
+	        """A brief message congratulating the team on the launch:
+	
+	        Hi everyone,
+	        
+	        I just """,
+	        # Few shot prompt (providing a few examples before asking model to complete more);
+	        """Translate English to French:
+	        
+	        sea otter => loutre de mer
+	        peppermint => menthe poivrée
+	        plush girafe => girafe peluche
+	        cheese =>""",
     ]
 
     model.eval()
-    results = model.generate(tokenizer, prompts, max_gen_len=64, temperature=0.6, top_p=0.9, kv_caching=True, device=device)
+    results = model.generate(tokenizer, prompts, max_gen_len=64, temperature=0.6, top_p=0.9, kv_caching=False, device=device)
 
     for prompt, result in zip(prompts, results):
         print(prompt)
