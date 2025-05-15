@@ -8,8 +8,10 @@ from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 from llama.generation import Generation
+from llama.lora import Linear as LoRALinear # from lora.py file
 
 
 @dataclass
@@ -195,8 +197,15 @@ class Attention(nn.Module):
         self.head_dim = args.dim // args.n_heads
 
         self.wq = nn.Linear(args.dim, args.n_heads * self.head_dim, bias=False)
+        # LoRA Q projection
+        # self.wq = LoRALinear(in_features=args.dim, out_features=args.n_heads * self.head_dim, r=16, lora_alpha=32, lora_dropout=0.05, bias=False)
+
         self.wk = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+
         self.wv = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        # LoRA V projection
+        # self.wv = LoRALinear(in_features=args.dim, out_features=self.n_kv_heads * self.head_dim, r=16, lora_alpha=32, lora_dropout=0.05, bias=False)
+        
         self.wo = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
 
         self.kv_caching = args.kv_caching
@@ -313,8 +322,12 @@ class FeedForward(nn.Module):
         self.w2 = nn.Linear(hidden_dim, dim, bias=False)
         self.w3 = nn.Linear(dim, hidden_dim, bias=False)
 
-    def forward(self, x):
+    def _forward(self, x):
         return self.w2(F.silu(self.w1(x)) * self.w3(x))
+
+    # checkpoint all ops in forward pass
+    def forward(self, x):
+        return checkpoint(self._forward, x)
 
 
 class TransformerBlock(nn.Module):
@@ -372,10 +385,21 @@ class TransformerBlock(nn.Module):
             torch.Tensor: Output tensor after applying attention and feedforward layers.
 
         """
-        h = x + self.attention.forward(
-            self.attention_norm(x), start_pos, freqs_cis, mask
+        # with activation checkpointing
+        attn_input = self.attention_norm(x)
+        attn_out = checkpoint(
+            lambda inp: self.attention(inp, start_pos, freqs_cis, mask),
+            attn_input
         )
-        out = h + self.feed_forward.forward(self.ffn_norm(h))
+
+        h = x + attn_out    
+        # h = x + self.attention.forward(
+        #     self.attention_norm(x), start_pos, freqs_cis, mask
+        # )
+        # out = h + self.feed_forward.forward(self.ffn_norm(h))
+
+        # with activation checkpointing
+        out = h + checkpoint(self.feed_forward, self.ffn_norm(h))
         return out
 
 
